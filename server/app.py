@@ -23,12 +23,53 @@ def bakeries():
     bakeries = [bakery.to_dict() for bakery in Bakery.query.all()]
     return make_response(  bakeries,   200  )
 
-@app.route('/bakeries/<int:id>')
+#PATCH -- updates the name of the bakery in the database and returns its data as JSON
+@app.route('/bakeries/<int:id>', methods = ['GET', 'PATCH'])
 def bakery_by_id(id):
-
     bakery = Bakery.query.filter_by(id=id).first()
-    bakery_serialized = bakery.to_dict()
-    return make_response ( bakery_serialized, 200  )
+    if bakery:
+        if request.method == 'GET':
+            bakery_serialized = bakery.to_dict()
+            return make_response ( bakery_serialized, 200 )
+        elif request.method == 'PATCH':
+            json_dict = request.get_json()
+            for attr in json_dict:
+                setattr(bakery, attr, json_dict.get(attr))
+            db.session.add(bakery)
+            db.session.commit()
+            return bakery.to_dict(), 201
+
+
+#POST -- creates a new baked good and returns its data as JSON
+@app.route('/baked_goods', methods = ['GET','POST'])
+def new_baked_goods():
+    if request.method == 'GET':
+        bg_obj = BakedGood.query.all()
+        bg_dict = []
+        for bg in bg_obj:
+            bg_dict.append(bg.to_dict())
+        return bg_dict, 200
+    
+    elif request.method == 'POST':
+        json_dict = request.get_json()
+        new_baked_good = BakedGood(
+            name = json_dict.get("name"),
+            price = json_dict.get("price"),
+            bakery_id = json_dict.get("bakery_id")
+        )
+        db.session.add(new_baked_good)
+        db.session.commit()
+        return new_baked_good.to_dict(), 201
+    
+#DELETE -- deletes the baked good from the database and returns a JSON message confirming that the record was successfully deleted.
+@app.route('/baked_goods/<int:id>', methods = ['DELETE'])
+def delete_baked_good(id):
+    baked_good = BakedGood.query.filter_by(id=id).first()
+    if request.method == 'DELETE':
+        db.session.delete(baked_good)
+        db.session.commit()
+    return make_response({"Message": "Successfully deleted the baked good."})
+    
 
 @app.route('/baked_goods/by_price')
 def baked_goods_by_price():
